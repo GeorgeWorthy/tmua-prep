@@ -1,6 +1,7 @@
 import { GROUPS, TOPICS, TOPIC, makeQuestion } from './topics.js';
 import { state, save, recordDrill, drillStatus } from './store.js';
 import { parseAnswer, sameValue, pick } from './util.js';
+import * as papers from './papers.js';
 
 const app = document.getElementById('app');
 const $ = sel => app.querySelector(sel);
@@ -13,7 +14,7 @@ let session = null, ticker = null;
 // ---------- Home ----------
 
 function home() {
-  stopTicker(); session = null;
+  stopTicker(); session = null; papers.leave();
   const p = Object.assign({ topic: 'all', n: 10, perQ: 0 }, state.prefs);
   const rows = g => TOPICS.filter(t => t.group === g).map(t => {
     const s = drillStatus(t.id);
@@ -40,8 +41,9 @@ function home() {
       </label>
       <button class="primary" id="go" style="width:100%">Start</button>
     </section>
+    ${papers.homeCard()}
     <section class="card">
-      <h2>Progress</h2>
+      <h2>Drill progress</h2>
       <p class="muted">Tap a topic to drill it. Solid means at least 80% over 10 or more attempts.</p>
       ${GROUPS.map(g => `<h3>${g.label}</h3><table>${rows(g.id)}</table>`).join('')}
       <p><button id="reset">Reset drill stats</button></p>
@@ -59,6 +61,7 @@ function home() {
   $('#topic').onchange = $('#timer').onchange = prefs;
   $('#go').onclick = () => { const q = prefs(); startDrill(q.topic, q.n, q.perQ); };
   app.querySelectorAll('[data-topic]').forEach(b => b.onclick = () => { const q = prefs(); startDrill(b.dataset.topic, q.n, q.perQ); });
+  papers.bindHome();
   $('#reset').onclick = () => { if (confirm('Clear all drill stats?')) { state.drill = {}; save(); home(); } };
 }
 
@@ -169,7 +172,13 @@ function goHome() {
   home();
 }
 
-window.addEventListener('hashchange', () => { if (location.hash !== '#drill') home(); });
+function route() {
+  const h = location.hash;
+  if (h === '#drill') { if (!session) goHome(); return; }
+  stopTicker(); session = null;
+  if (!papers.route(h)) home();
+}
+window.addEventListener('hashchange', route);
 
 // Letter or number keys pick a multiple choice option.
 document.addEventListener('keydown', e => {
@@ -178,4 +187,9 @@ document.addEventListener('keydown', e => {
   if (i >= 0 && i < session.q.options.length) answer(i);
 });
 
-goHome();
+route();
+
+// Offline support. Skipped on localhost so local edits always show up straight away.
+if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

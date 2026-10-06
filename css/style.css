@@ -62,3 +62,28 @@ form.typed input { flex: 1; min-width: 0; }
 .score { font-size: 2rem; font-weight: 700; }
 .miss { border-top: 1px solid var(--line); padding: 10px 0; }
 .miss:first-of-type { border-top: 0; }
+
+/* Past papers */
+a.btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); text-decoration: none; }
+a.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+a.btn.small { min-height: 36px; padding: 4px 12px; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.chips button { padding: 0; min-height: 40px; }
+.chips button.right { border-color: var(--good); background: var(--good-bg); }
+.chips button.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.chips.big button { min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.chips.big small { color: var(--muted); }
+.chips.big button.done { background: var(--good-bg); }
+.chips.big button.flag { border: 2px solid var(--warn); }
+/* Question images are black on white, so keep a white backing in dark mode too. */
+img.q { display: block; width: 100%; max-width: 760px; height: auto; background: #fff; border-radius: 6px; margin-bottom: 12px; }
+.letters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.letters button { font-weight: 700; }
+.letters button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.letters button.right { border-color: var(--good); background: var(--good-bg); }
+.letters button.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.nav { margin-top: 12px; }
+.nav button { flex: 1; }
+button.flagged { border-color: var(--warn); background: var(--warn-bg); }
+#clock.low { color: var(--bad); font-weight: 700; }
