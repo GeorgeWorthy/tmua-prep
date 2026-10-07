@@ -18,7 +18,8 @@ async function load() {
   return QS;
 }
 // Saved results: att[id] = {n, c, last, ok}; wrong = queue of ids; mocks = finished mocks; mock = one in progress;
-// log = every timed attempt, oldest first: {id, t, ms, ok, ans, src}. ans is null for a blank mock answer.
+// log = every timed attempt, oldest first: {id, t, ms, ok, ans, src, how}. ans is null for a blank mock answer;
+// how is 'head' or 'paper', recorded for practice attempts only (not mocks).
 const P = () => {
   const p = state.papers || (state.papers = { att: {}, wrong: [], mocks: [], mock: null });
   p.log ||= [];
@@ -31,6 +32,11 @@ const worked = q => (q.worked_answer_pdf ? `<a href="${q.worked_answer_pdf}${q.p
 
 const when = t => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const pill = a => `<span class="pill ${a.ok ? 'solid' : 'bad'}">${a.ok ? 'Right' : a.ans ? 'Wrong' : 'Blank'}</span>`;
+
+// How a question was worked. The choice sticks between questions until it is changed.
+const HOW = { head: 'In my head', paper: 'On paper' };
+const how = () => state.prefs.how || 'paper';
+const howSeg = cur => `<div class="seg" id="how">${Object.entries(HOW).map(([v, t]) => `<button data-how="${v}" class="${v === cur ? 'on' : ''}">${t}</button>`).join('')}</div>`;
 
 // Practice stopwatch. Only counts while the page is visible, so a locked phone does not inflate the time.
 let sw = null;
@@ -51,12 +57,12 @@ function bank() {
   shown.at = now;
 }
 
-const logAttempt = (id, ans, ok, ms, src) => P().log.push({ id, t: Date.now(), ms: Math.round(ms), ok, ans, src });
+const logAttempt = (id, ans, ok, ms, src, how) => P().log.push({ id, t: Date.now(), ms: Math.round(ms), ok, ans, src, how });
 
-function record(q, letter, ms, src) {
+function record(q, letter, ms, src, how) {
   const p = P(), ok = letter === q.correct, a = p.att[q.id] || (p.att[q.id] = { n: 0, c: 0 });
   a.n++; if (ok) a.c++; a.last = letter; a.ok = ok;
-  logAttempt(q.id, letter, ok, ms, src);
+  logAttempt(q.id, letter, ok, ms, src, how);
   p.wrong = p.wrong.filter(id => id !== q.id);
   if (!ok) p.wrong.push(q.id);
   save();
@@ -154,13 +160,14 @@ function startPractice(ids, i, title, back) {
 
 function practice() {
   const q = byId[prac.ids[prac.i]], n = prac.ids.length;
-  prac.done = false;
+  prac.done = false; prac.entry = null;
   leave();
   app.innerHTML = `
     <div class="bar"><a class="btn small" href="${prac.back}">Back</a><span>${prac.title} ${prac.i + 1} / ${n}</span><span id="clock">0:00</span></div>
     <section class="card">
       <div class="tag">${label(q)}${q.topic ? ', ' + TOPIC[q.topic].label : ''}</div>
       <img class="q" src="${q.image}" alt="${label(q)}">
+      ${howSeg(how())}
       <div class="letters">${letters(q).map(l => `<button data-l="${l}">${l}</button>`).join('')}</div>
       <div id="fb"></div>
       <div class="row nav"><button id="prev" ${prac.i ? '' : 'disabled'}>Previous</button><button id="skip">${prac.i + 1 < n ? 'Skip' : 'Finish'}</button></div>
@@ -174,13 +181,24 @@ function practice() {
   $('#prev').onclick = () => go(-1);
   $('#skip').onclick = () => go(1);
   $('.letters').onclick = e => { const b = e.target.closest('button'); if (b) pick(b.dataset.l); };
+  // Changing this after answering corrects the attempt just logged.
+  $('#how').onclick = e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    state.prefs.how = b.dataset.how;
+    if (prac.entry) prac.entry.how = b.dataset.how;
+    save();
+    app.querySelectorAll('#how button').forEach(x => x.classList.toggle('on', x === b));
+    if (prac.entry) $('#past').innerHTML = attempts(q.id);
+  };
   window.scrollTo(0, 0);
   function pick(l) {
     if (prac.done) return;
     prac.done = true;
     const ms = swRead();
     leave();
-    const ok = record(q, l, ms, prac.title);
+    const ok = record(q, l, ms, prac.title, how());
+    prac.entry = P().log.at(-1);
     $('#clock').textContent = clock(ms);
     $('#past').innerHTML = attempts(q.id);
     app.querySelectorAll('.letters button').forEach(b => {
@@ -200,7 +218,7 @@ function practice() {
 function attempts(id) {
   const rows = P().log.filter(a => a.id === id).reverse();
   return rows.length ? `<section class="card"><h2>Your attempts at this question</h2><table>${rows.map(a =>
-    `<tr><td>${when(a.t)}</td><td class="muted">${a.src}</td><td>${pill(a)}</td><td class="n">${clock(a.ms)}</td></tr>`).join('')}</table></section>` : '';
+    `<tr><td>${when(a.t)}</td><td class="muted">${a.src}</td><td class="muted">${HOW[a.how] || ''}</td><td>${pill(a)}</td><td class="n">${clock(a.ms)}</td></tr>`).join('')}</table></section>` : '';
 }
 
 async function wrongQueue() {
@@ -332,18 +350,20 @@ async function history() {
   const list = log.filter(a => f === 'all' || (f === 'right') === a.ok).reverse();
   const ids = [...new Set(list.map(a => a.id))], right = log.filter(a => a.ok).length;
   const avg = a => (a.length ? clock(a.reduce((s, x) => s + x.ms, 0) / a.length) : '–');
+  const byHow = Object.entries(HOW).map(([v, t]) => [t, log.filter(a => a.how === v)]).filter(([, a]) => a.length);
   app.innerHTML = `
     <div class="bar"><a class="btn small" href="#">Home</a><span>${list.length} attempt${list.length === 1 ? '' : 's'}</span></div>
     <section class="card">
       <h2>History and timings</h2>
       <div class="seg" id="hf">${[['all', 'All'], ['wrong', 'Wrong'], ['right', 'Right']].map(([v, t]) => `<button data-f="${v}" class="${v === f ? 'on' : ''}">${t}</button>`).join('')}</div>
       ${log.length ? `<p class="muted">${log.length} timed attempts, ${Math.round(100 * right / log.length)}% right.
-        Average ${avg(log.filter(a => a.ok))} when right, ${avg(log.filter(a => !a.ok && a.ans))} when wrong.</p>`
+        Average ${avg(log.filter(a => a.ok))} when right, ${avg(log.filter(a => !a.ok && a.ans))} when wrong.</p>
+        ${byHow.map(([t, a]) => `<p class="muted">${t}: ${a.length} attempt${a.length === 1 ? '' : 's'}, ${Math.round(100 * a.filter(x => x.ok).length / a.length)}% right, average ${avg(a.filter(x => x.ans))}.</p>`).join('')}`
     : '<p class="muted">No timed attempts yet. Every past paper question you answer from now on is listed here with its time and result.</p>'}
       ${ids.length ? `<button class="primary" id="redo" style="width:100%">Practise these ${ids.length} question${ids.length === 1 ? '' : 's'}</button>` : ''}
     </section>
     ${list.length ? `<section class="card"><table>${list.slice(0, 300).map(a => `<tr>
-      <td><button class="link" data-id="${a.id}">${label(byId[a.id])}</button><div class="muted">${when(a.t)}, ${a.src}</div></td>
+      <td><button class="link" data-id="${a.id}">${label(byId[a.id])}</button><div class="muted">${when(a.t)}, ${a.src}${a.how ? ', ' + HOW[a.how].toLowerCase() : ''}</div></td>
       <td>${pill(a)}${a.ans ? ` <span class="muted">${a.ans}</span>` : ''}</td><td class="n">${clock(a.ms)}</td></tr>`).join('')}</table>
       ${list.length > 300 ? '<p class="muted">Showing the latest 300. Export results from the home screen for the full log.</p>' : ''}</section>` : ''}`;
   $('#hf').onclick = e => { const b = e.target.closest('button'); if (b) { state.prefs.hist = b.dataset.f; save(); history(); } };
