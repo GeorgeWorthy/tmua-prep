@@ -17,6 +17,7 @@ Then open http://localhost:8000
 - **Past papers**: all 360 questions from 2016 to 2023 and the specimen papers, browsable by year, paper, topic or status, marked instantly with a link to the official worked answer.
 - **Mock mode**: one paper, 20 questions, 75 minutes, flag for review, no feedback until you submit.
 - **Wrong answers**: a queue of every question you missed. A question leaves when you get it right.
+- **History and timings**: every past paper attempt is timed and logged with its result. Filter the log to wrong or right answers, reopen any question from it, and see all earlier attempts under a question while practising. Mock results show the time spent on each question.
 
 ## Files
 

@@ -39,6 +39,7 @@ td.n { text-align: right; white-space: nowrap; color: var(--muted); font-variant
 .pill.none { background: var(--bg); color: var(--muted); }
 .pill.shaky { background: var(--warn-bg); color: var(--warn); }
 .pill.solid { background: var(--good-bg); color: var(--good); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
 
 .bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
 .bar button { min-height: 36px; padding: 4px 12px; }
